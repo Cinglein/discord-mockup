@@ -24,41 +24,20 @@ pub mod server;
 pub mod snapshot;
 pub mod user;
 
-pub const MAX_BROADCAST: usize = 1000;
+const MAX_BROADCAST: usize = 1000;
 
 pub type Sender = broadcast::Sender<Event>;
-
-#[derive(Clone, Debug)]
-pub struct SendUser(pub Sender);
-#[derive(Clone, Debug)]
-pub struct SendServer(pub Sender);
-#[derive(Clone, Debug)]
-pub struct SendChannel(pub Sender);
-#[derive(Clone, Debug)]
-pub struct SendMessage(pub Sender);
 
 #[derive(Clone, FromRef)]
 struct AppState {
     pool: SqlitePool,
-    create_user: SendUser,
-    create_server: SendServer,
-    create_channel: SendChannel,
-    create_message: SendMessage,
+    send_update: Sender,
 }
 
 impl AppState {
     fn new(pool: SqlitePool) -> Self {
-        let create_user = User::init();
-        let create_server = Server::init();
-        let create_channel = Channel::init();
-        let create_message = Message::init();
-        Self {
-            pool,
-            create_user,
-            create_server,
-            create_channel,
-            create_message,
-        }
+        let (send_update, _recv) = broadcast::channel(MAX_BROADCAST);
+        Self { pool, send_update }
     }
 }
 
@@ -68,10 +47,7 @@ impl AppState {
     create_server,
     create_channel,
     create_message,
-    create_user_updates,
-    create_server_updates,
-    create_channel_updates,
-    create_message_updates
+    get_updates,
 ))]
 struct ApiDoc;
 
@@ -94,10 +70,7 @@ async fn main() -> Result<(), ServerErr> {
         .route(CREATE_SERVER_PATH, get(create_server))
         .route(CREATE_CHANNEL_PATH, get(create_channel))
         .route(CREATE_MESSAGE_PATH, get(create_message))
-        .route(CREATE_USER_UPDATES_PATH, get(create_user_updates))
-        .route(CREATE_SERVER_UPDATES_PATH, get(create_server_updates))
-        .route(CREATE_CHANNEL_UPDATES_PATH, get(create_channel_updates))
-        .route(CREATE_MESSAGE_UPDATES_PATH, get(create_message_updates))
+        .route(GET_UPDATES_PATH, get(get_updates))
         .fallback_service(static_service)
         .with_state(state)
         .layer(CompressionLayer::new())

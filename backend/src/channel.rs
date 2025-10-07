@@ -1,13 +1,11 @@
-use crate::{error::ServerErr, server::ServerId, SendChannel, MAX_BROADCAST};
+use crate::{error::ServerErr, server::ServerId, snapshot::Update, Sender};
 use axum::{
     extract::{Query, State},
-    response::{sse::Event, Sse},
+    response::{sse::Event, IntoResponse},
+    Json,
 };
-use futures_util::stream::Stream;
 use serde::{Deserialize, Serialize};
 use sqlx::{query, query_scalar, SqlitePool};
-use tokio::sync::broadcast;
-use tokio_stream::wrappers::{errors::BroadcastStreamRecvError, BroadcastStream};
 use ts_rs::TS;
 use utoipa::{IntoParams, ToSchema};
 
@@ -15,7 +13,6 @@ pub type ChannelId = i32;
 
 pub const CHANNEL_NAME_MAX_LEN: usize = 32;
 pub const CREATE_CHANNEL_PATH: &str = "/create-channel";
-pub const CREATE_CHANNEL_UPDATES_PATH: &str = "/create-channel-updates";
 
 #[derive(Serialize, Deserialize, TS, ToSchema, Clone, Debug)]
 #[ts(export, export_to = "../../frontend/src/bindings/")]
@@ -26,10 +23,6 @@ pub struct Channel {
 }
 
 impl Channel {
-    pub fn init() -> SendChannel {
-        let (send, _recv) = broadcast::channel(MAX_BROADCAST);
-        SendChannel(send)
-    }
     pub async fn insert(
         pool: &SqlitePool,
         server_id: ServerId,
@@ -73,15 +66,15 @@ pub struct CreateChannelParams {
     path = CREATE_CHANNEL_PATH,
     params(CreateChannelParams),
     responses(
-        (status = 200, description = "Create a new channel", body = ()),
+        (status = 200, description = "Create a new channel", body = Channel),
         (status = 500, description = "Internal server error", body = String)
     )
 )]
 pub async fn create_channel(
     State(pool): State<SqlitePool>,
-    State(SendChannel(send)): State<SendChannel>,
+    State(send): State<Sender>,
     Query(query): Query<CreateChannelParams>,
-) -> Result<(), ServerErr> {
+) -> Result<impl IntoResponse, ServerErr> {
     let server_id_exists = 1
         == query_scalar!(
             r#"SELECT EXISTS(SELECT 1 FROM servers WHERE id = ?1);"#,
@@ -93,23 +86,7 @@ pub async fn create_channel(
         return Err(ServerErr::NoServerId(query.server_id));
     }
     let channel = Channel::insert(&pool, query.server_id, query.name).await?;
-    let event = Event::default().json_data(channel)?;
+    let event = Event::default().json_data(Update::Channel(channel.clone()))?;
     send.send(event)?;
-    Ok(())
-}
-
-#[utoipa::path(
-    get,
-    path = CREATE_CHANNEL_UPDATES_PATH,
-    params(),
-    responses(
-        (status = 200, description = "Subscribe to channel SSE updates", body = ()),
-        (status = 500, description = "Internal server error", body = String)
-    )
-)]
-pub async fn create_channel_updates(
-    State(SendChannel(send)): State<SendChannel>,
-) -> Sse<impl Stream<Item = Result<Event, BroadcastStreamRecvError>>> {
-    let stream: BroadcastStream<_> = send.subscribe().into();
-    Sse::new(stream).keep_alive(Default::default())
+    Ok(Json(channel))
 }

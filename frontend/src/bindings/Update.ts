@@ -4,4 +4,4 @@ import type { Message } from "./Message";
 import type { Server } from "./Server";
 import type { User } from "./User";
 
-export type Snapshot = { users: { [key in number]?: User }, channels: { [key in number]?: Array<Channel> }, servers: { [key in number]?: Server }, messages: { [key in number]?: { [key in number]?: Array<Message> } }, };
+export type Update = { "User": User } | { "Server": Server } | { "Channel": Channel } | { "Message": Message };

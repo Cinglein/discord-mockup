@@ -1,14 +1,46 @@
-use crate::{channel::*, error::ServerErr, message::*, server::*, user::*};
-use axum::{extract::State, response::IntoResponse, Json};
+use crate::{channel::*, error::ServerErr, message::*, server::*, user::*, Sender};
+use axum::{
+    extract::State,
+    response::{sse::Event, IntoResponse, Sse},
+    Json,
+};
 use chrono::{DateTime, Utc};
+use futures_util::Stream;
 use serde::{Deserialize, Serialize};
 use sqlx::{query_as, SqlitePool};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
+use tokio_stream::wrappers::{errors::BroadcastStreamRecvError, BroadcastStream};
 use ts_rs::TS;
 use utoipa::ToSchema;
 
+pub const GET_UPDATES_PATH: &str = "/updates";
 pub const SNAPSHOT_PATH: &str = "/snapshot";
 pub const SNAPSHOT_DEPTH: i64 = 128;
+
+#[derive(Serialize, Deserialize, Clone, TS, ToSchema)]
+#[ts(export, export_to = "../../frontend/src/bindings/")]
+pub enum Update {
+    User(User),
+    Server(Server),
+    Channel(Channel),
+    Message(Message),
+}
+
+#[utoipa::path(
+    get,
+    path = GET_UPDATES_PATH,
+    params(),
+    responses(
+        (status = 200, description = "Subscribe to SSE updates", body = ()),
+        (status = 500, description = "Internal server error", body = String)
+    )
+)]
+pub async fn get_updates(
+    State(send): State<Sender>,
+) -> Sse<impl Stream<Item = Result<Event, BroadcastStreamRecvError>>> {
+    let stream: BroadcastStream<_> = send.subscribe().into();
+    Sse::new(stream).keep_alive(Default::default())
+}
 
 #[derive(Serialize, Deserialize, Clone, TS, ToSchema)]
 #[ts(export, export_to = "../../frontend/src/bindings/")]
@@ -16,7 +48,7 @@ pub struct Snapshot {
     users: HashMap<UserId, User>,
     channels: HashMap<ServerId, Vec<Channel>>,
     servers: HashMap<ServerId, Server>,
-    messages: HashMap<(ServerId, ChannelId), Vec<Message>>,
+    messages: HashMap<ServerId, HashMap<ChannelId, Vec<Message>>>,
 }
 
 impl Snapshot {
@@ -70,8 +102,9 @@ impl Snapshot {
         )
         .fetch_all(pool)
         .await?;
-        let servers = channels.iter().map(|channel| channel.server_id);
+        let servers: HashSet<ServerId> = channels.iter().map(|channel| channel.server_id).collect();
         let channels = servers
+            .into_iter()
             .map(|server_id| {
                 (
                     server_id,
@@ -87,7 +120,7 @@ impl Snapshot {
     }
     pub async fn get_messages(
         pool: &SqlitePool,
-    ) -> Result<HashMap<(ServerId, ChannelId), Vec<Message>>, ServerErr> {
+    ) -> Result<HashMap<ServerId, HashMap<ChannelId, Vec<Message>>>, ServerErr> {
         let messages = query_as!(
             Message,
             r#"
@@ -106,16 +139,37 @@ impl Snapshot {
         )
         .fetch_all(pool)
         .await?;
-        let keys = messages.iter().map(|msg| (msg.server_id, msg.channel_id));
-        let messages = keys
-            .map(|k| {
+        let servers: HashSet<ServerId> = messages.iter().map(|msg| msg.server_id).collect();
+        let channels: HashMap<ServerId, Vec<ChannelId>> = servers
+            .into_iter()
+            .map(|server_id| {
                 (
-                    k,
+                    server_id,
                     messages
                         .iter()
-                        .filter(|msg| msg.server_id == k.0 && msg.channel_id == k.1)
-                        .rev()
-                        .cloned()
+                        .filter_map(|msg| (msg.server_id == server_id).then_some(msg.channel_id))
+                        .collect(),
+                )
+            })
+            .collect();
+        let messages = channels
+            .into_iter()
+            .map(|(server_id, channels)| {
+                (
+                    server_id,
+                    channels
+                        .into_iter()
+                        .map(|channel_id| {
+                            (
+                                channel_id,
+                                messages
+                                    .iter()
+                                    .filter(|msg| msg.channel_id == channel_id)
+                                    .rev()
+                                    .cloned()
+                                    .collect(),
+                            )
+                        })
                         .collect(),
                 )
             })
