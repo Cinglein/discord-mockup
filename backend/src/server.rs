@@ -77,7 +77,7 @@ pub async fn create_server(
 }
 
 #[utoipa::path(
-    post,
+    get,
     path = CREATE_SERVER_UPDATES_PATH,
     params(),
     responses(

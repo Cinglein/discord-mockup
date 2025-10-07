@@ -99,7 +99,7 @@ pub async fn create_channel(
 }
 
 #[utoipa::path(
-    post,
+    get,
     path = CREATE_CHANNEL_UPDATES_PATH,
     params(),
     responses(

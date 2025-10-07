@@ -14,6 +14,7 @@ use error::ServerErr;
 use channel::*;
 use message::*;
 use server::*;
+use snapshot::*;
 use user::*;
 
 pub mod channel;
@@ -88,6 +89,7 @@ async fn main() -> Result<(), ServerErr> {
 
     let app = Router::new()
         .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
+        .route(SNAPSHOT_PATH, get(get_snapshot))
         .route(CREATE_USER_PATH, get(create_user))
         .route(CREATE_SERVER_PATH, get(create_server))
         .route(CREATE_CHANNEL_PATH, get(create_channel))

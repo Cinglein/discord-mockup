@@ -77,7 +77,7 @@ pub async fn create_user(
 }
 
 #[utoipa::path(
-    post,
+    get,
     path = CREATE_USER_UPDATES_PATH,
     params(),
     responses(

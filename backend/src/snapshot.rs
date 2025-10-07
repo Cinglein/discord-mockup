@@ -1,4 +1,5 @@
 use crate::{channel::*, error::ServerErr, message::*, server::*, user::*};
+use axum::{extract::State, response::IntoResponse, Json};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::{query_as, SqlitePool};
@@ -6,6 +7,7 @@ use std::collections::HashMap;
 use ts_rs::TS;
 use utoipa::ToSchema;
 
+pub const SNAPSHOT_PATH: &str = "/snapshot";
 pub const SNAPSHOT_DEPTH: i64 = 128;
 
 #[derive(Serialize, Deserialize, Clone, TS, ToSchema)]
@@ -112,6 +114,7 @@ impl Snapshot {
                     messages
                         .iter()
                         .filter(|msg| msg.server_id == k.0 && msg.channel_id == k.1)
+                        .rev()
                         .cloned()
                         .collect(),
                 )
@@ -119,4 +122,18 @@ impl Snapshot {
             .collect();
         Ok(messages)
     }
+}
+
+#[utoipa::path(
+    get,
+    path = SNAPSHOT_PATH,
+    params(),
+    responses(
+        (status = 200, description = "Get a snapshot of users, servers, channels, and messages", body = Snapshot),
+        (status = 500, description = "Internal server error", body = String)
+    )
+)]
+pub async fn get_snapshot(State(pool): State<SqlitePool>) -> Result<impl IntoResponse, ServerErr> {
+    let snapshot = Snapshot::new(&pool).await?;
+    Ok(Json(snapshot))
 }

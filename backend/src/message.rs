@@ -146,7 +146,7 @@ pub async fn create_message(
 }
 
 #[utoipa::path(
-    post,
+    get,
     path = CREATE_MESSAGE_UPDATES_PATH,
     params(),
     responses(
