@@ -133,6 +133,8 @@ pub async fn create_message(
     )
     .await?;
     let event = Event::default().json_data(Update::Message(message.clone()))?;
-    send.send(event)?;
+    if let Err(err) = send.send(event) {
+        tracing::error!("Error sending event: {err:?}");
+    }
     Ok(Json(message))
 }

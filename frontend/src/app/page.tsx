@@ -1,5 +1,23 @@
 'use client';
 
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useApp } from '@/state/app-state';
+
+export default function Home() {
+  const { userId, snapshot, setUserId, setSnapshot } = useApp();
+  const r = useRouter();
+  useEffect(() => {
+    if (!userId) r.replace('/login');
+    else {
+      const s = servers[0];
+      const ch = channels.find(c => c.serverId === s.id)!;
+      r.replace(`/${s.id}/${ch.id}`);
+    }
+  }, [user, servers, channels, r]);
+  return null;
+}
+
 export default function Home() {
 	return (
 		<>

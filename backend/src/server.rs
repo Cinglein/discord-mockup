@@ -65,6 +65,8 @@ pub async fn create_server(
 ) -> Result<impl IntoResponse, ServerErr> {
     let server = Server::insert(&pool, query.name).await?;
     let event = Event::default().json_data(Update::Server(server.clone()))?;
-    send.send(event)?;
+    if let Err(err) = send.send(event) {
+        tracing::error!("Error sending event: {err:?}");
+    }
     Ok(Json(server))
 }

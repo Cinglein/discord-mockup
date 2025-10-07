@@ -65,6 +65,8 @@ pub async fn create_user(
 ) -> Result<impl IntoResponse, ServerErr> {
     let user = User::insert(&pool, query.name).await?;
     let event = Event::default().json_data(Update::User(user.clone()))?;
-    send.send(event)?;
+    if let Err(err) = send.send(event) {
+        tracing::error!("Error sending event: {err:?}");
+    }
     Ok(Json(user))
 }

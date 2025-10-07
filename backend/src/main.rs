@@ -1,4 +1,9 @@
-use axum::{extract::FromRef, response::sse::Event, routing::get, Router};
+use axum::{
+    extract::FromRef,
+    response::sse::Event,
+    routing::{get, post},
+    Router,
+};
 use sqlx::{migrate, migrate::MigrateDatabase, Sqlite, SqlitePool};
 use tokio::sync::broadcast;
 use tower_http::{
@@ -47,6 +52,7 @@ impl AppState {
     create_server,
     create_channel,
     create_message,
+    get_snapshot,
     get_updates,
 ))]
 struct ApiDoc;
@@ -61,15 +67,18 @@ async fn main() -> Result<(), ServerErr> {
     let pool = SqlitePool::connect("sqlite::memory:").await?;
     migrate!("../migrations").run(&pool).await?;
 
+    let server = Server::insert(&pool, "My First Server".to_string()).await?;
+    let _channel = Channel::insert(&pool, server.id, "Home".to_string()).await?;
+
     let state = AppState::new(pool);
 
     let app = Router::new()
         .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
+        .route(CREATE_USER_PATH, post(create_user))
+        .route(CREATE_SERVER_PATH, post(create_server))
+        .route(CREATE_CHANNEL_PATH, post(create_channel))
+        .route(CREATE_MESSAGE_PATH, post(create_message))
         .route(SNAPSHOT_PATH, get(get_snapshot))
-        .route(CREATE_USER_PATH, get(create_user))
-        .route(CREATE_SERVER_PATH, get(create_server))
-        .route(CREATE_CHANNEL_PATH, get(create_channel))
-        .route(CREATE_MESSAGE_PATH, get(create_message))
         .route(GET_UPDATES_PATH, get(get_updates))
         .fallback_service(static_service)
         .with_state(state)

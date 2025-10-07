@@ -87,6 +87,8 @@ pub async fn create_channel(
     }
     let channel = Channel::insert(&pool, query.server_id, query.name).await?;
     let event = Event::default().json_data(Update::Channel(channel.clone()))?;
-    send.send(event)?;
+    if let Err(err) = send.send(event) {
+        tracing::error!("Error sending event: {err:?}");
+    }
     Ok(Json(channel))
 }
