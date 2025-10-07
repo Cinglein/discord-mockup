@@ -63,7 +63,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 	useEffect(() => {
 		(async() => {
 			setSnapshot(await getSnapshot());
-			const es = new EventSource('/sse');
+			const es = new EventSource('/updates');
 			sseRef.current = es;
 			es.addEventListener('message', (evt) => {
 				try {

@@ -1,33 +1,31 @@
 'use client';
 
+import { Server } from '@bindings/Server';
+import { Channel } from '@bindings/Channel';
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useApp } from '@/state/app-state';
 
 export default function Home() {
-  const { userId, snapshot, setUserId, setSnapshot } = useApp();
+  const { userId, snapshot } = useApp();
   const r = useRouter();
   useEffect(() => {
     if (!userId) r.replace('/login');
-    else {
-      const s = servers[0];
-      const ch = channels.find(c => c.serverId === s.id)!;
-      r.replace(`/${s.id}/${ch.id}`);
-    }
-  }, [user, servers, channels, r]);
-  return null;
-}
+    else if (snapshot !== null) {
+			const server: Server | undefined = Object.values(snapshot.servers)[0];
+			const channel: Channel | undefined = server?.id 
+				? (
+					(snapshot.channels[server.id] ?? [])[0] 
+					?? undefined
+				) 
+				: undefined;
+			if (server && channel) {
+				r.replace(`/ui?server_id=${server.id}&channel_id=${channel.id}`);
+			} else {
+				r.replace(`/404.html`);
+			}
 
-export default function Home() {
-	return (
-		<>
-			<div className="font-sans">Axum and Next.js Template Page</div>
-			<ul>
-				<li><a className="text-blue-400" href="/swagger-ui/">API Docs</a></li>
-				<li><a className="text-blue-400" href="/sse-demo/">SSE Demo</a></li>
-				<li><a className="text-blue-400" href="/ws-demo/">WS Demo</a></li>
-				<li><a className="text-blue-400" href="/db-demo/">DB Demo</a></li>
-			</ul>
-		</>
-	);
+    }
+  }, [userId, snapshot, r]);
+	return null;
 }

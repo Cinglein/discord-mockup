@@ -1,4 +1,4 @@
-use crate::{error::ServerErr, snapshot::Update, Sender};
+use crate::{channel::Channel, error::ServerErr, snapshot::Update, Sender};
 use axum::{
     extract::{Query, State},
     response::{sse::Event, IntoResponse},
@@ -54,7 +54,7 @@ pub struct CreateServerParams {
     path = CREATE_SERVER_PATH,
     params(CreateServerParams),
     responses(
-        (status = 200, description = "Create a new server", body = Server),
+        (status = 200, description = "Create a new server", body = (Server, Channel)),
         (status = 500, description = "Internal server error", body = String)
     )
 )]
@@ -64,9 +64,10 @@ pub async fn create_server(
     Query(query): Query<CreateServerParams>,
 ) -> Result<impl IntoResponse, ServerErr> {
     let server = Server::insert(&pool, query.name).await?;
+    let channel = Channel::insert(&pool, server.id, "home".to_string()).await?;
     let event = Event::default().json_data(Update::Server(server.clone()))?;
     if let Err(err) = send.send(event) {
         tracing::error!("Error sending event: {err:?}");
     }
-    Ok(Json(server))
+    Ok(Json((server, channel)))
 }
