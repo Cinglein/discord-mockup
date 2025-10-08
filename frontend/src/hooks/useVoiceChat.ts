@@ -4,9 +4,12 @@ import { VoiceSignal } from '@/bindings/VoiceSignal';
 export function useVoiceChat(userId: number | null, channelId: number | null) {
   const [isConnected, setIsConnected] = useState(false);
   const [connectedUsers, setConnectedUsers] = useState<Set<number>>(new Set());
+  const [isMuted, setIsMuted] = useState(false);
+  const [isDeafened, setIsDeafened] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const peersRef = useRef<Map<number, RTCPeerConnection>>(new Map());
+  const audioElementsRef = useRef<Map<number, HTMLAudioElement>>(new Map());
 
   const sendSignal = (signal: VoiceSignal) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -32,7 +35,9 @@ export function useVoiceChat(userId: number | null, channelId: number | null) {
       // Create audio element to play remote stream
       const audio = new Audio();
       audio.srcObject = remoteStream;
+      audio.muted = isDeafened; // Apply current deafen state
       audio.play();
+      audioElementsRef.current.set(remoteUserId, audio);
     };
 
     // Handle ICE candidates
@@ -84,6 +89,15 @@ export function useVoiceChat(userId: number | null, channelId: number | null) {
           pc.close();
           peersRef.current.delete(signal.user_id);
         }
+
+        // Clean up audio element
+        const audio = audioElementsRef.current.get(signal.user_id);
+        if (audio) {
+          audio.pause();
+          audio.srcObject = null;
+          audioElementsRef.current.delete(signal.user_id);
+        }
+
         setConnectedUsers((prev) => {
           const next = new Set(prev);
           next.delete(signal.user_id);
@@ -167,6 +181,35 @@ export function useVoiceChat(userId: number | null, channelId: number | null) {
     }
   };
 
+  const toggleMute = useCallback(() => {
+    if (localStreamRef.current) {
+      const audioTrack = localStreamRef.current.getAudioTracks()[0];
+      if (audioTrack) {
+        audioTrack.enabled = !audioTrack.enabled;
+        setIsMuted(!audioTrack.enabled);
+      }
+    }
+  }, []);
+
+  const toggleDeafen = useCallback(() => {
+    const newDeafenState = !isDeafened;
+    setIsDeafened(newDeafenState);
+
+    // Mute all remote audio elements
+    audioElementsRef.current.forEach((audio) => {
+      audio.muted = newDeafenState;
+    });
+
+    // If deafening, also mute microphone
+    if (newDeafenState && localStreamRef.current) {
+      const audioTrack = localStreamRef.current.getAudioTracks()[0];
+      if (audioTrack) {
+        audioTrack.enabled = false;
+        setIsMuted(true);
+      }
+    }
+  }, [isDeafened]);
+
   const leaveVoice = useCallback(() => {
     if (userId && channelId && wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({
@@ -180,6 +223,13 @@ export function useVoiceChat(userId: number | null, channelId: number | null) {
     peersRef.current.forEach((pc) => pc.close());
     peersRef.current.clear();
 
+    // Clean up all audio elements
+    audioElementsRef.current.forEach((audio) => {
+      audio.pause();
+      audio.srcObject = null;
+    });
+    audioElementsRef.current.clear();
+
     // Stop local stream
     localStreamRef.current?.getTracks().forEach((track) => track.stop());
     localStreamRef.current = null;
@@ -190,6 +240,8 @@ export function useVoiceChat(userId: number | null, channelId: number | null) {
 
     setIsConnected(false);
     setConnectedUsers(new Set());
+    setIsMuted(false);
+    setIsDeafened(false);
   }, [userId, channelId]);
 
   // Cleanup on unmount
@@ -202,7 +254,11 @@ export function useVoiceChat(userId: number | null, channelId: number | null) {
   return {
     isConnected,
     connectedUsers,
+    isMuted,
+    isDeafened,
     joinVoice,
     leaveVoice,
+    toggleMute,
+    toggleDeafen,
   };
 }

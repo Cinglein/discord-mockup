@@ -10,7 +10,7 @@ interface VoiceChannelProps {
 
 export function VoiceChannel({ channelId, serverId }: VoiceChannelProps) {
   const { userId, snapshot } = useApp();
-  const { isConnected, connectedUsers, joinVoice, leaveVoice } = useVoiceChat(userId, channelId);
+  const { isConnected, connectedUsers, isMuted, isDeafened, joinVoice, leaveVoice, toggleMute, toggleDeafen } = useVoiceChat(userId, channelId);
 
   const channel = snapshot?.channels[serverId]?.find((c) => c.id === channelId);
 
@@ -46,6 +46,42 @@ export function VoiceChannel({ channelId, serverId }: VoiceChannelProps) {
                 {snapshot?.users?.[userId]?.name ?? 'You'}
               </span>
               <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse" />
+
+              {/* Mute button */}
+              <button
+                onClick={toggleMute}
+                className={`${isMuted || isDeafened ? 'text-red-500' : 'text-[#949ba4]'} hover:text-white`}
+                title={isMuted || isDeafened ? 'Unmute' : 'Mute'}
+              >
+                {isMuted || isDeafened ? (
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 2a3 3 0 00-3 3v6a3 3 0 006 0V5a3 3 0 00-3-3zM19 11h-2a5 5 0 01-10 0H5a7 7 0 0014 0zM2 2l20 20-1.4 1.4L2 3.4z"/>
+                  </svg>
+                ) : (
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 2a3 3 0 00-3 3v6a3 3 0 006 0V5a3 3 0 00-3-3zM19 11h-2a5 5 0 01-10 0H5a7 7 0 0014 0z"/>
+                  </svg>
+                )}
+              </button>
+
+              {/* Deafen button */}
+              <button
+                onClick={toggleDeafen}
+                className={`${isDeafened ? 'text-red-500' : 'text-[#949ba4]'} hover:text-white`}
+                title={isDeafened ? 'Undeafen' : 'Deafen'}
+              >
+                {isDeafened ? (
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 3a9 9 0 00-9 9v7c0 1.1.9 2 2 2h2v-8H5v-1a7 7 0 1114 0v1h-2v8h2c1.1 0 2-.9 2-2v-7a9 9 0 00-9-9zM2 2l20 20-1.4 1.4L2 3.4z"/>
+                  </svg>
+                ) : (
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 3a9 9 0 00-9 9v7c0 1.1.9 2 2 2h2v-8H5v-1a7 7 0 1114 0v1h-2v8h2c1.1 0 2-.9 2-2v-7a9 9 0 00-9-9z"/>
+                  </svg>
+                )}
+              </button>
+
+              {/* Leave button */}
               <button
                 onClick={leaveVoice}
                 className="text-[#949ba4] hover:text-white"
