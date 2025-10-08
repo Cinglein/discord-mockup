@@ -110,7 +110,8 @@ Add permissions (roles, visibility, admin rights, kicking/banning).
 
 ### Milestone 3
 
-Get a state syncing system working.
+Get a state syncing system:
+- 
 
 ### Other Milestones
 

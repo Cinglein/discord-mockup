@@ -20,14 +20,18 @@ use channel::*;
 use message::*;
 use server::*;
 use snapshot::*;
+use typing::*;
 use user::*;
+use voice_signal::*;
 
 pub mod channel;
 pub mod error;
 pub mod message;
 pub mod server;
 pub mod snapshot;
+pub mod typing;
 pub mod user;
+pub mod voice_signal;
 
 const MAX_BROADCAST: usize = 1000;
 
@@ -37,12 +41,18 @@ pub type Sender = broadcast::Sender<Event>;
 struct AppState {
     pool: SqlitePool,
     send_update: Sender,
+    send_voice: VoiceSender,
 }
 
 impl AppState {
     fn new(pool: SqlitePool) -> Self {
         let (send_update, _recv) = broadcast::channel(MAX_BROADCAST);
-        Self { pool, send_update }
+        let (send_voice, _recv) = broadcast::channel(MAX_BROADCAST);
+        Self {
+            pool,
+            send_update,
+            send_voice,
+        }
     }
 }
 
@@ -52,6 +62,7 @@ impl AppState {
     create_server,
     create_channel,
     create_message,
+    typing,
     get_snapshot,
     get_updates,
 ))]
@@ -78,8 +89,10 @@ async fn main() -> Result<(), ServerErr> {
         .route(CREATE_SERVER_PATH, post(create_server))
         .route(CREATE_CHANNEL_PATH, post(create_channel))
         .route(CREATE_MESSAGE_PATH, post(create_message))
+        .route(TYPING_PATH, post(typing))
         .route(SNAPSHOT_PATH, get(get_snapshot))
         .route(GET_UPDATES_PATH, get(get_updates))
+        .route(VOICE_WS_PATH, get(voice_ws))
         .fallback_service(static_service)
         .with_state(state)
         .layer(CompressionLayer::new())

@@ -7,6 +7,7 @@ import { useRef, createContext, useContext, useEffect, useMemo, useState } from 
 type State = {
 	userId: number | null;
 	snapshot: Snapshot | null;
+	typingUsers: Set<number>;
 	setUserId(id: number | null): void;
 	setSnapshot(s: Snapshot | null): void;
 }
@@ -16,6 +17,7 @@ const AppStateCtx = createContext<State | null>(null);
 export function AppStateProvider({ children }: { children: React.ReactNode }) {
 	const [userId, setUserId] = useState<number | null>(null);
 	const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
+	const [typingUsers, setTypingUsers] = useState<Set<number>>(new Set());
 	const sseRef = useRef<EventSource | null>(null);
 
 	async function getSnapshot(): Promise<Snapshot | null> {
@@ -34,29 +36,48 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 		}
   }
 
-	function handleUpdate(snapshot: Snapshot, u: Update) {
+	function handleUpdate(snapshot: Snapshot, u: Update): Snapshot {
 		if ("User" in u) {
 			const { User } = u;
-			snapshot.users[User.id] = User;
+			return {
+				...snapshot,
+				users: { ...snapshot.users, [User.id]: User }
+			};
 		} else if ("Server" in u) {
 			const { Server } = u;
-			snapshot.servers[Server.id] = Server;
+			return {
+				...snapshot,
+				servers: { ...snapshot.servers, [Server.id]: Server }
+			};
 		} else if ("Channel" in u) {
 			const { Channel } = u;
 			const channels = snapshot.channels[Channel.server_id] ?? [];
-			if (!channels.some((c) => c.id === Channel.id)) {
-				channels.push(Channel);
-			}
-			snapshot.channels[Channel.server_id] = channels;
-		} else {
+			const updatedChannels = channels.some((c) => c.id === Channel.id)
+				? channels
+				: [...channels, Channel];
+			return {
+				...snapshot,
+				channels: { ...snapshot.channels, [Channel.server_id]: updatedChannels }
+			};
+		} else if ("Message" in u) {
 			const { Message } = u;
 			const channels = snapshot.messages[Message.server_id] ?? {};
 			const messages = channels[Message.channel_id] ?? [];
-			if (!messages.some((m) => m.id === Message.id)) {
-				messages.push(Message);
-			}
-			channels[Message.channel_id] = messages;
-			snapshot.messages[Message.server_id] = channels;
+			const updatedMessages = messages.some((m) => m.id === Message.id)
+				? messages
+				: [...messages, Message];
+			return {
+				...snapshot,
+				messages: {
+					...snapshot.messages,
+					[Message.server_id]: {
+						...channels,
+						[Message.channel_id]: updatedMessages
+					}
+				}
+			};
+		} else {
+			return snapshot;
 		}
 	}
 
@@ -68,14 +89,26 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 			es.addEventListener('message', (evt) => {
 				try {
 					const parsed: Update = JSON.parse(evt.data);
-					setSnapshot((prev) => {
-						if (prev === null) {
-							return null;
+					if ("Typing" in parsed) {
+						const { Typing } = parsed;
+						if ("Start" in Typing) {
+							setTypingUsers((prev) => new Set(prev).add(Typing.Start));
 						} else {
-							handleUpdate(prev, parsed);
-							return prev;
+							setTypingUsers((prev) => {
+								const next = new Set(prev);
+								next.delete(Typing.Stop);
+								return next;
+							});
 						}
-					});
+					} else {
+						setSnapshot((prev) => {
+							if (prev === null) {
+								return null;
+							} else {
+								return handleUpdate(prev, parsed);
+							}
+						});
+					}
 				} catch {
 					console.error(`Error parsing message json: ${evt.data}`);
 				}
@@ -90,9 +123,10 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 	const api = useMemo<State>(() => ({
 		userId,
 		snapshot,
+		typingUsers,
 		setUserId,
 		setSnapshot,
-	}), [userId, setUserId, snapshot, setSnapshot]);
+	}), [userId, setUserId, snapshot, setSnapshot, typingUsers]);
 	return <AppStateCtx.Provider value = { api }>{ children }</AppStateCtx.Provider>;
 }
 

@@ -9,8 +9,8 @@ export function Modal({ open, onClose, children }: { open: boolean; onClose(): v
   }, [open, onClose]);
   if (!open) return null;
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-white dark:bg-zinc-900 rounded-xl p-4 min-w-[320px]" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 bg-black/70 grid place-items-center z-50" onClick={onClose}>
+      <div className="bg-[#313338] rounded-lg p-6 min-w-[420px]" onClick={e => e.stopPropagation()}>
         {children}
       </div>
     </div>

@@ -1,4 +1,4 @@
-use crate::{channel::*, error::ServerErr, message::*, server::*, user::*, Sender};
+use crate::{channel::*, error::ServerErr, message::*, server::*, typing::*, user::*, Sender};
 use axum::{
     extract::State,
     response::{sse::Event, IntoResponse, Sse},
@@ -24,6 +24,7 @@ pub enum Update {
     Server(Server),
     Channel(Channel),
     Message(Message),
+    Typing(Typing),
 }
 
 #[utoipa::path(

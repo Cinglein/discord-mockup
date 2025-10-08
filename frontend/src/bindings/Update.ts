@@ -2,6 +2,7 @@
 import type { Channel } from "./Channel";
 import type { Message } from "./Message";
 import type { Server } from "./Server";
+import type { Typing } from "./Typing";
 import type { User } from "./User";
 
-export type Update = { "User": User } | { "Server": Server } | { "Channel": Channel } | { "Message": Message };
+export type Update = { "User": User } | { "Server": Server } | { "Channel": Channel } | { "Message": Message } | { "Typing": Typing };

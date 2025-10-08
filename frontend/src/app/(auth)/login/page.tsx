@@ -22,9 +22,9 @@ export default function Login() {
   }
 
   return (
-    <main className="min-h-screen flex items-center justify-center">
+    <main className="min-h-screen bg-[#313338] grid place-items-center">
       <form
-        className="space-y-3 bg-white dark:bg-zinc-900/50 p-6 rounded-xl border border-zinc-200 dark:border-zinc-800"
+        className="grid gap-4 bg-[#2b2d31] p-8 rounded-lg min-w-[420px]"
         onSubmit={(e) => {
           e.preventDefault();
           const data = new FormData(e.currentTarget as HTMLFormElement);
@@ -32,12 +32,12 @@ export default function Login() {
           if (name) create_user(name);
         }}
       >
-        <h1 className="text-xl font-semibold">Create a User Account</h1>
+        <h1 className="text-2xl font-bold text-white text-center">Welcome!</h1>
         <div className="grid gap-2">
-          <label className="text-sm">Username</label>
-          <input name="name" className="px-3 py-2 rounded-md bg-zinc-100 dark:bg-zinc-800 outline-none" placeholder="My User Name" />
+          <label className="text-xs font-semibold text-[#b5bac1] uppercase">Username</label>
+          <input name="name" className="px-3 py-2.5 rounded bg-[#1e1f22] border border-[#1e1f22] focus:border-[#00a8fc] outline-none text-white" placeholder="Enter your username" autoFocus />
         </div>
-        <button className="w-full mt-2 bg-indigo-600 text-white rounded-md py-2">Continue</button>
+        <button className="bg-[#5865f2] hover:bg-[#4752c4] text-white rounded py-2.5 font-medium transition-colors">Continue</button>
       </form>
     </main>
   );

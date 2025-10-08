@@ -64,8 +64,12 @@ pub async fn create_server(
     Query(query): Query<CreateServerParams>,
 ) -> Result<impl IntoResponse, ServerErr> {
     let server = Server::insert(&pool, query.name).await?;
-    let channel = Channel::insert(&pool, server.id, "home".to_string()).await?;
+    let channel = Channel::insert(&pool, server.id, "Home".to_string()).await?;
     let event = Event::default().json_data(Update::Server(server.clone()))?;
+    if let Err(err) = send.send(event) {
+        tracing::error!("Error sending event: {err:?}");
+    }
+    let event = Event::default().json_data(Update::Channel(channel.clone()))?;
     if let Err(err) = send.send(event) {
         tracing::error!("Error sending event: {err:?}");
     }

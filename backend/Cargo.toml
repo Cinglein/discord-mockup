@@ -19,3 +19,4 @@ tracing = "0.1.41"
 ts-rs = { version = "11.0.1", features = ["chrono", "chrono-impl", "serde-json-impl", "serde_json", "tokio", "tokio-impl"] }
 utoipa = { version = "5.4.0", features = ["axum_extras", "chrono"] }
 utoipa-swagger-ui = { version = "9.0.2", features = ["axum"] }
+webrtc = { version = "0.14.0", features = ["openssl"] }

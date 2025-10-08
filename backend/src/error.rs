@@ -34,6 +34,8 @@ pub enum ServerErr {
     NoMessageId(MessageId),
     #[error("Error sending SSE event: {0}")]
     SendErr(#[from] SendError<Event>),
+    #[error("Bad request: {0}")]
+    BadRequest(String),
 }
 
 impl IntoResponse for ServerErr {
@@ -43,6 +45,7 @@ impl IntoResponse for ServerErr {
             Self::NoUserId(_) => StatusCode::BAD_REQUEST,
             Self::NoChannelId(_) => StatusCode::BAD_REQUEST,
             Self::NoMessageId(_) => StatusCode::BAD_REQUEST,
+            Self::BadRequest(_) => StatusCode::BAD_REQUEST,
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         };
         (status_code, Json(self.to_string())).into_response()
