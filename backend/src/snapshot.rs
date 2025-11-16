@@ -25,6 +25,8 @@ pub enum Update {
     Channel(Channel),
     Message(Message),
     Typing(Typing),
+    VoiceJoin { user_id: UserId, channel_id: i32 },
+    VoiceLeave { user_id: UserId, channel_id: i32 },
 }
 
 #[utoipa::path(
@@ -39,6 +41,7 @@ pub enum Update {
 pub async fn get_updates(
     State(send): State<Sender>,
 ) -> Sse<impl Stream<Item = Result<Event, BroadcastStreamRecvError>>> {
+    tracing::info!("New SSE client connected to /updates");
     let stream: BroadcastStream<_> = send.subscribe().into();
     Sse::new(stream).keep_alive(Default::default())
 }

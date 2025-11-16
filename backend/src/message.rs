@@ -133,6 +133,8 @@ pub async fn create_message(
     )
     .await?;
     let event = Event::default().json_data(Update::Message(message.clone()))?;
+    let receiver_count = send.receiver_count();
+    tracing::info!("Sending message update to {} SSE clients", receiver_count);
     if let Err(err) = send.send(event) {
         tracing::error!("Error sending event: {err:?}");
     }

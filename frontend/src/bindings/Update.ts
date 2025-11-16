@@ -5,4 +5,4 @@ import type { Server } from "./Server";
 import type { Typing } from "./Typing";
 import type { User } from "./User";
 
-export type Update = { "User": User } | { "Server": Server } | { "Channel": Channel } | { "Message": Message } | { "Typing": Typing };
+export type Update = { "User": User } | { "Server": Server } | { "Channel": Channel } | { "Message": Message } | { "Typing": Typing } | { "VoiceJoin": { user_id: number, channel_id: number, } } | { "VoiceLeave": { user_id: number, channel_id: number, } };

@@ -11,6 +11,19 @@ Add migrations with `sqlx migrate add <name>`
 
 Run migrations with `sqlx migrate run`
 
+## How to Run
+
+### Local Testing
+
+Use `cargo run` and then open `localhost:3000`. To connect as multiple
+users, simply open multiple browser tabs.
+
+### Server
+
+Use `build.sh` to build to linux, and `up.sh` to upload to a remote
+server. On the server, use `systemd.sh` to set up the system daemon
+to run the program. 
+
 ## Spec
 
 ### Architecture and Tradeoffs
@@ -99,26 +112,7 @@ it will ask for a new snapshot while buffering new updates.
 
 On the frontend there will be optimistic loading of messages.
 
-### Milestone 1
+## AI & Tools
 
-Get a basic version up and running, where users can choose an arbitrary login,
-make servers/channels, and write messages. Everything is default-visible. 
-
-### Milestone 2
-
-Add permissions (roles, visibility, admin rights, kicking/banning).
-
-### Milestone 3
-
-Get a state syncing system:
-- 
-
-### Other Milestones
-
-Other features: 
-- Replies
-- Threads
-- Reactions
-- Typing/Online indicators
-- Reports
-- DMs
+I used Claude Code to fill in sections of the frontend components and CSS, after writing
+a basic skeleton myself. Claude also wrote most of the audio portions of the backend.

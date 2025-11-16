@@ -42,6 +42,7 @@ struct AppState {
     pool: SqlitePool,
     send_update: Sender,
     send_voice: VoiceSender,
+    voice_state: VoiceState,
 }
 
 impl AppState {
@@ -52,6 +53,7 @@ impl AppState {
             pool,
             send_update,
             send_voice,
+            voice_state: VoiceState::default(),
         }
     }
 }

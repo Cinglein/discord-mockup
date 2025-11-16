@@ -8,6 +8,7 @@ type State = {
 	userId: number | null;
 	snapshot: Snapshot | null;
 	typingUsers: Set<number>;
+	voiceUsers: Map<number, Set<number>>; // channel_id -> Set<user_id>
 	setUserId(id: number | null): void;
 	setSnapshot(s: Snapshot | null): void;
 }
@@ -18,6 +19,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 	const [userId, setUserId] = useState<number | null>(null);
 	const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
 	const [typingUsers, setTypingUsers] = useState<Set<number>>(new Set());
+	const [voiceUsers, setVoiceUsers] = useState<Map<number, Set<number>>>(new Map());
 	const sseRef = useRef<EventSource | null>(null);
 
 	async function getSnapshot(): Promise<Snapshot | null> {
@@ -86,7 +88,18 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 			setSnapshot(await getSnapshot());
 			const es = new EventSource('/updates');
 			sseRef.current = es;
+
+			es.addEventListener('open', () => {
+				console.log('SSE connection opened');
+			});
+
+			es.addEventListener('error', (error) => {
+				console.error('SSE connection error:', error);
+				console.error('SSE readyState:', es.readyState);
+			});
+
 			es.addEventListener('message', (evt) => {
+				console.log('SSE message received:', evt.data);
 				try {
 					const parsed: Update = JSON.parse(evt.data);
 					if ("Typing" in parsed) {
@@ -100,6 +113,28 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 								return next;
 							});
 						}
+					} else if ("VoiceJoin" in parsed) {
+						const { user_id, channel_id } = parsed.VoiceJoin;
+						setVoiceUsers((prev) => {
+							const next = new Map(prev);
+							const users = new Set(next.get(channel_id) || []);
+							users.add(user_id);
+							next.set(channel_id, users);
+							return next;
+						});
+					} else if ("VoiceLeave" in parsed) {
+						const { user_id, channel_id } = parsed.VoiceLeave;
+						setVoiceUsers((prev) => {
+							const next = new Map(prev);
+							const users = new Set(next.get(channel_id) || []);
+							users.delete(user_id);
+							if (users.size === 0) {
+								next.delete(channel_id);
+							} else {
+								next.set(channel_id, users);
+							}
+							return next;
+						});
 					} else {
 						setSnapshot((prev) => {
 							if (prev === null) {
@@ -124,9 +159,10 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 		userId,
 		snapshot,
 		typingUsers,
+		voiceUsers,
 		setUserId,
 		setSnapshot,
-	}), [userId, setUserId, snapshot, setSnapshot, typingUsers]);
+	}), [userId, setUserId, snapshot, setSnapshot, typingUsers, voiceUsers]);
 	return <AppStateCtx.Provider value = { api }>{ children }</AppStateCtx.Provider>;
 }
 
